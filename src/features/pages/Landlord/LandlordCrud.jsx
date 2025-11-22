@@ -1,13 +1,17 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
-import { Upload, X } from "lucide-react";
+import { Upload, X, Sparkles, Loader2 } from "lucide-react"; // added Sparkles & Loader2
 import Lheader from "./Lheader";
 import { usePgcreate } from "../../../hooks/usePgCreate";
+import { useGetUser } from "../../../hooks/useUser";
+import { NavLink, useNavigate } from "react-router-dom";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/jpg", "image/gif"];
 
 export default function LandlordCrud() {
+  const navigate = useNavigate();
+  const { isLoggedIn } = useGetUser();
   const {
     register,
     handleSubmit,
@@ -52,6 +56,12 @@ export default function LandlordCrud() {
 
   // Local preview URLs to show thumbnails (kept separate for cleanup)
   const [previews, setPreviews] = useState([]);
+
+  // AI UI state
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState("");
+  const [tone, setTone] = useState("friendly"); // friendly | professional | concise | descriptive
+  const [lengthWords, setLengthWords] = useState(120);
 
   // Whenever uploadedImages changes (File objects), create object URLs for preview
   useEffect(() => {
@@ -106,7 +116,57 @@ export default function LandlordCrud() {
   };
 
   const { createPg, isLoading, error } = usePgcreate();
-  // const onSubmit =(createPg())
+
+  // -----------------------
+  // AI generate description
+  // -----------------------
+  async function generateDescription() {
+    setGenerateError("");
+    setIsGenerating(true);
+    try {
+      // Build a prompt payload using available form fields to guide the AI
+      const payload = {
+        tone,
+        length_words: lengthWords,
+        // give some context if available
+        propertyName: watch("propertyName"),
+        nearme: watch("nearme"),
+        bhkConfig: watch("bhkConfig"),
+        city: watch("city"),
+        areaname: watch("areaname"),
+      };
+
+      // Call your backend endpoint. IMPORTANT: keep your API key on the server.
+      const res = await fetch("/api/generate-description", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || "Failed to generate description");
+      }
+
+      const data = await res.json();
+      const generated = data.description || "";
+
+      // set value into react-hook-form
+      setValue("description", generated, {
+        shouldDirty: true,
+        shouldTouch: true,
+      });
+
+      setIsGenerating(false);
+    } catch (err) {
+      console.error("AI generation error:", err);
+      setGenerateError(
+        err?.message || "Something went wrong while generating."
+      );
+      setIsGenerating(false);
+    }
+  }
+
   const onSubmit = (data) => {
     const formData = new FormData();
 
@@ -127,8 +187,6 @@ export default function LandlordCrud() {
 
     // ---------------------------------------------------------
     // 2. Handle Amenities (The Object Fix)
-    // Input: { wifi: true, ac: false, tv: true }
-    // Output: formData appends "wifi" and "tv"
     // ---------------------------------------------------------
     if (data.amenities) {
       Object.keys(data.amenities).forEach((key) => {
@@ -155,54 +213,6 @@ export default function LandlordCrud() {
     // ---------------------------------------------------------
     createPg(formData);
   };
-  // const onSubmit = async (data) => {
-  //   try {
-  //     // Example: prepare FormData to upload to server
-  //     const formData = new FormData();
-  //     formData.append("propertyName", data.propertyName);
-  //     formData.append("nearme", data.nearme);
-  //     formData.append("bhkConfig", data.bhkConfig);
-  //     formData.append("description", data.description);
-  //     formData.append("streetAddress", data.streetAddress);
-  //     formData.append("city", data.city);
-  //     formData.append("state", data.state);
-  //     formData.append("rentPrice", data.rentPrice);
-  //     formData.append("securityDeposit", data.securityDeposit);
-  //     formData.append("availableFrom", data.availableFrom);
-  //     formData.append("depoRefund", data.depoRefund);
-  //     formData.append("availableTo", data.availableTo);
-  //     formData.append("areaname", data.areaname);
-
-  //     // amenities as JSON
-  //     formData.append("amenities", JSON.stringify(data.amenities || {}));
-
-  //     // append images (File objects). If any uploadedImages are remote URLs (string), handle accordingly.
-  //     (data.uploadedImages || []).forEach((fileOrUrl, idx) => {
-  //       if (fileOrUrl instanceof File) {
-  //         formData.append("images", fileOrUrl, fileOrUrl.name);
-  //       } else if (typeof fileOrUrl === "string") {
-  //         // If you have existing remote images (strings), you might send them as URLs:
-  //         formData.append("existingImageUrls[]", fileOrUrl);
-  //       }
-  //     });
-
-  //     // Example: show what would be sent (for dev)
-  //     // console.log("Form payload (FormData entries):");
-  //     // for (const pair of formData.entries()) {
-  //     //   console.log(pair[1]);
-  //     // }
-
-  //     createPg(formData, { onSettled: reset });
-  //     // Replace with your upload logic, e.g.:
-  //     // await fetch('/api/listings', { method: 'POST', body: formData });
-
-  //     alert("Listing saved successfully! (check console for form payload)");
-  //     // optionally reset
-  //   } catch (err) {
-  //     console.error(err);
-  //     alert("An error occurred while saving the listing.");
-  //   }
-  // };
 
   const fileInputRef = useRef(null);
 
@@ -333,14 +343,85 @@ export default function LandlordCrud() {
                     {/*  */}
 
                     <label className="flex flex-col">
-                      <p className="text-slate-800 dark:text-slate-300 text-sm font-medium pb-2">
-                        Property Description
-                      </p>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-slate-800 dark:text-slate-300 text-sm font-medium pb-2">
+                            Property Description
+                          </p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            Describe your property, its features, and nearby
+                            landmarks.
+                          </p>
+                        </div>
+
+                        {/* AI controls */}
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={tone}
+                            onChange={(e) => setTone(e.target.value)}
+                            className="text-xs rounded-lg border px-2 py-1 bg-white dark:bg-slate-800/60 border-slate-300 dark:border-slate-700"
+                            title="Select tone for AI-generated text"
+                          >
+                            <option value="friendly">Friendly</option>
+                            <option value="professional">Professional</option>
+                            <option value="concise">Concise</option>
+                            <option value="descriptive">Descriptive</option>
+                          </select>
+
+                          <button
+                            type="button"
+                            onClick={() => navigate("/generatedPage")}
+                            disabled={isGenerating}
+                            className="flex items-center gap-2 text-xs rounded-lg px-3 py-1.5 bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
+                            aria-label="Generate AI description"
+                          >
+                            {isGenerating ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Generating...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="w-4 h-4" />
+                                <span>Need AI generated Description?</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
                       <textarea
                         {...register("description")}
-                        className="w-full rounded-lg text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/50 h-32 p-4 resize-y focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                        className="w-full rounded-lg text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/50 h-32 p-4 resize-y focus:outline-none focus:ring-2 focus:ring-blue-500/50 mt-3"
                         placeholder="Describe your property, its features, and nearby landmarks."
                       />
+                      {/* {generateError && (
+                        <p className="text-red-500 text-sm mt-2">
+                          {generateError}
+                        </p>
+                      )} */}
+
+                      {/* length slider (optional) */}
+                      {/* <div className="mt-3 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="range"
+                            min={40}
+                            max={300}
+                            step={10}
+                            value={lengthWords}
+                            onChange={(e) =>
+                              setLengthWords(Number(e.target.value))
+                            }
+                          />
+                          <span className="text-slate-500">
+                            Length ≈ {lengthWords} words
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-400">
+                          Tone: {tone}
+                        </div>
+                      </div> */}
                     </label>
                   </div>
                 </div>
@@ -398,29 +479,6 @@ export default function LandlordCrud() {
                         </p>
                       )}
                     </label>
-
-                    {/* <label className="flex flex-col sm:col-span-2">
-                      <p className="text-slate-800 dark:text-slate-300 text-sm font-medium pb-2">
-                        Pincode
-                      </p>
-                      <input
-                        type="text"
-                        {...register("pincode", {
-                          required: "Pincode required",
-                          pattern: {
-                            value: /^\d{6}$/,
-                            message: "Pincode must be 6 digits",
-                          },
-                        })}
-                        className="w-full rounded-lg text-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/50 h-12 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                        placeholder="e.g., 560001"
-                      />
-                      {errors.pincode && (
-                        <p className="text-red-500 text-sm mt-1">
-                          {errors.pincode.message}
-                        </p>
-                      )}
-                    </label> */}
                   </div>
                 </div>
 
@@ -555,8 +613,6 @@ export default function LandlordCrud() {
                             onChange={(e) =>
                               handleFilesSelected(e.target.files, onChange)
                             }
-                            // prevent the click event on the input from bubbling to the parent (not strictly necessary,
-                            // but keeps behaviour predictable)
                             onClick={(e) => e.stopPropagation()}
                           />
                         </div>
@@ -644,13 +700,22 @@ export default function LandlordCrud() {
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="min-w-[84px] rounded-lg h-12 px-6 bg-blue-500 text-white text-sm font-bold hover:bg-blue-600 transition-colors"
-                >
-                  {isSubmitting ? "Saving..." : "Save Listing"}
-                </button>
+                {isLoggedIn ? (
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="min-w-[84px] rounded-lg h-12 px-6 bg-blue-500 text-white text-sm font-bold hover:bg-blue-600 transition-colors"
+                  >
+                    {isSubmitting ? "Saving..." : "Save Listing"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => navigate("/login")}
+                    className="min-w-[84px] rounded-lg h-12 px-6 bg-blue-500 text-white text-sm font-bold hover:bg-blue-600 transition-colors"
+                  >
+                    Save Listing
+                  </button>
+                )}
               </div>
             </div>
           </form>

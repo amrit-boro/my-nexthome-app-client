@@ -7,6 +7,9 @@ export async function getUser() {
     });
     return res.data;
   } catch (err) {
+    if (err.response && err.response.status === 401) {
+      return null;
+    }
     console.log(err);
     throw new Error("Error fetching user datab", err);
   }

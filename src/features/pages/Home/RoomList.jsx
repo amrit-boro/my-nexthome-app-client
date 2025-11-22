@@ -14,6 +14,7 @@ function RoomList() {
   });
 
   const propertyArray = pgDetails?.data?.data?.[0]?.properties || [];
+  console.log("propertyArrayt: ", propertyArray.property_id);
 
   if (isLoading) return <ListingSpinner size={10} color="blue-500" centered />;
   if (error) return window.alert("sory");
@@ -106,7 +107,7 @@ function RoomList() {
                   </div>
 
                   <Link
-                    to="/roomDetail"
+                    to={`/roomDetail/${listing.property_id}`}
                     className="w-full h-9 sm:h-10 px-3 rounded-lg bg-blue-50 text-blue-600 
                     text-xs sm:text-sm font-bold hover:bg-blue-100 
                     transition-colors flex items-center justify-center"

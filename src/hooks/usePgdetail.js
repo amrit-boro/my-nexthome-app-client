@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getPgDetail } from "../services/apiPGs";
+import { getdetailById, getPgDetail } from "../services/apiPGs";
 
 export const usePgdetail = () => {
   const { data: pgdetail, isLoading } = useQuery({
@@ -10,4 +10,12 @@ export const usePgdetail = () => {
     pgdetail,
     isLoading,
   };
+};
+
+export const useRoomdetails = (id) => {
+  const { data, isLoading } = useQuery({
+    queryKey: ["roomdetail", id],
+    queryFn: () => getdetailById(id),
+  });
+  return { data, isLoading };
 };

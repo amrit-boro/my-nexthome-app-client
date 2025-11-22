@@ -10,6 +10,7 @@ import GuestaProfile from "./features/pages/Guest/GuestsProfile";
 import LandlordCrud from "./features/pages/Landlord/LandlordCrud";
 import Login from "./features/pages/Login/Login";
 import Signup from "./features/pages/SignUp/Signup";
+import AigeneratedDes from "./features/pages/Landlord/AigeneratedDes";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -28,8 +29,9 @@ const router = createBrowserRouter([
       { path: "/room", element: <ListofRoom /> },
       { path: "/guest", element: <GuestaProfile /> },
       { path: "/landlord", element: <LandlordProfile /> },
-      { path: "/roomDetail", element: <RoomDetail /> },
+      { path: "/roomDetail/:id", element: <RoomDetail /> },
       { path: "/landlordCrud", element: <LandlordCrud /> },
+      { path: "/generatedPage", element: <AigeneratedDes /> },
     ],
   },
   { path: "/login", element: <Login /> },

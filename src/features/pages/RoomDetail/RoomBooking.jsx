@@ -1,4 +1,6 @@
 function RoomBooking({
+  price,
+  refundable,
   checkIn,
   checkOut,
   guests,
@@ -11,7 +13,7 @@ function RoomBooking({
       <div className="sticky top-24">
         <div className="rounded-xl border border-gray-200 bg-white shadow-lg p-6 flex flex-col gap-4">
           <div className="flex items-baseline gap-2">
-            <p className="text-2xl font-bold">₹15,000</p>
+            <p className="text-2xl font-bold">₹{price}</p>
             <p className="text-gray-500">/ month</p>
           </div>
 
@@ -71,8 +73,8 @@ function RoomBooking({
           </button>
 
           <div className="flex justify-between text-sm">
-            <p className="text-gray-500">₹15,000 x 1 month</p>
-            <p>₹15,000</p>
+            <p className="text-gray-500">₹{price} x 1 month</p>
+            <p>{price}</p>
           </div>
 
           <div className="flex justify-between text-sm">
@@ -82,7 +84,7 @@ function RoomBooking({
 
           <div className="border-t border-gray-200 pt-3 mt-2 flex justify-between font-bold">
             <p>Total</p>
-            <p>₹15,500</p>
+            <p>₹{price}</p>
           </div>
         </div>
       </div>

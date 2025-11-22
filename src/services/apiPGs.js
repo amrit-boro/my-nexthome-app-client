@@ -26,6 +26,23 @@ export async function getPgDetail() {
   }
 }
 
+export async function getdetailById(id) {
+  try {
+    const res = await axios.get(
+      `http://localhost:8000/api/v1/pg/getSinglePg/${id}`,
+      {
+        withCredentials: true,
+      }
+    );
+    console.log("result: ", res);
+    console.log("resutl typ: ", typeof res);
+    return res?.data?.data;
+  } catch (err) {
+    console.log(err);
+    throw new Error("Error fetching pg data: ", err);
+  }
+}
+
 /*
 {
   title,
